@@ -239,3 +239,23 @@ Click claim
 🎯 FINAL PITCH
 
 “PayFlow turns salary slips into interactive crypto vouchers by pre-funding embedded wallets on payout, allowing employees to claim their salary to any wallet instantly.”
+
+
+The order should be:
+
+Step	What	Why
+1
+Supabase integration (backend + frontend)
+Foundation — CRUD for employees, payrolls, redeem tokens
+2
+Circle integration
+Create embedded wallets per employee, execute transfers
+3
+Arc integration
+Lock employer funds, release on payout
+4
+PDF generation + email
+Generate salary slips, send via email
+5
+Scheduler/agent
+Auto-trigger distribution at payout time
