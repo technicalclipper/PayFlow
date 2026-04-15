@@ -47,7 +47,6 @@ export default function Home() {
 
       {/* Hero */}
       <main className="flex-1 flex flex-col items-center justify-center px-6 relative overflow-hidden">
-        {/* Background glow orbs */}
         <div className="absolute top-1/4 -left-32 w-96 h-96 bg-accent-blue/10 rounded-full blur-[128px] pointer-events-none" />
         <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-accent-purple/10 rounded-full blur-[128px] pointer-events-none" />
 

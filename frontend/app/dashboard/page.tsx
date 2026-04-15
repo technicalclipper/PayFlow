@@ -133,10 +133,7 @@ export default function DashboardPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full gradient-bg flex items-center justify-center text-xs font-bold text-white">
-                          {pe.employee.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
+                          {pe.employee.name.split(" ").map((n) => n[0]).join("")}
                         </div>
                         <div>
                           <p className="text-sm font-medium">{pe.employee.name}</p>
@@ -190,12 +187,8 @@ export default function DashboardPage() {
                   <Badge status={payroll.status} />
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-text-muted">
-                    {payroll.employees.length} employees
-                  </p>
-                  <p className="text-sm font-semibold">
-                    {payroll.totalAmount.toLocaleString()} USDC
-                  </p>
+                  <p className="text-xs text-text-muted">{payroll.employees.length} employees</p>
+                  <p className="text-sm font-semibold">{payroll.totalAmount.toLocaleString()} USDC</p>
                 </div>
               </motion.div>
             ))}

@@ -11,7 +11,6 @@ import { mockPayrolls } from "@/lib/mock-data";
 export default function PayrollsPage() {
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <motion.h1
@@ -21,78 +20,48 @@ export default function PayrollsPage() {
           >
             Payrolls
           </motion.h1>
-          <p className="text-text-secondary text-sm mt-1">
-            Create and manage payroll cycles
-          </p>
+          <p className="text-text-secondary text-sm mt-1">Create and manage payroll cycles</p>
         </div>
         <Link href="/dashboard/payrolls/create">
           <Button icon={<Plus className="w-4 h-4" />}>Create Payroll</Button>
         </Link>
       </div>
 
-      {/* Payroll Cards */}
       <div className="space-y-4">
         {mockPayrolls.map((payroll, i) => (
-          <GlassCard
-            key={payroll.id}
-            hoverable
-            className="p-6"
-            transition={{ delay: i * 0.05, duration: 0.4 }}
-          >
+          <GlassCard key={payroll.id} hoverable className="p-6" transition={{ delay: i * 0.05, duration: 0.4 }}>
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-3">
                   <h3 className="text-lg font-semibold">
                     Payroll —{" "}
-                    {new Date(payroll.payoutDate).toLocaleDateString("en-US", {
-                      month: "long",
-                      year: "numeric",
-                    })}
+                    {new Date(payroll.payoutDate).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
                   </h3>
                   <Badge status={payroll.status} />
                 </div>
-
                 <div className="flex flex-wrap items-center gap-6 text-sm text-text-secondary">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-text-muted" />
-                    <span>
-                      Payout:{" "}
-                      {new Date(payroll.payoutDate).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </span>
+                    {new Date(payroll.payoutDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                   </div>
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-4 h-4 text-text-muted" />
-                    <span className="font-medium text-text-primary">
-                      {payroll.totalAmount.toLocaleString()} USDC
-                    </span>
+                    <span className="font-medium text-text-primary">{payroll.totalAmount.toLocaleString()} USDC</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-text-muted" />
-                    <span>{payroll.employees.length} employees</span>
+                    {payroll.employees.length} employees
                   </div>
                 </div>
               </div>
-
-              <div className="flex items-center gap-3">
-                <Link href={`/dashboard/payrolls/${payroll.id}`}>
-                  <Button variant="secondary" size="sm" icon={<Eye className="w-4 h-4" />}>
-                    View Details
-                  </Button>
-                </Link>
-              </div>
+              <Link href={`/dashboard/payrolls/${payroll.id}`}>
+                <Button variant="secondary" size="sm" icon={<Eye className="w-4 h-4" />}>View Details</Button>
+              </Link>
             </div>
-
-            {/* Employee status breakdown */}
             <div className="mt-4 pt-4 border-t border-glass-border">
               <div className="flex flex-wrap gap-4 text-xs">
                 {(["pending", "funded", "redeemed"] as const).map((status) => {
-                  const count = payroll.employees.filter(
-                    (e) => e.status === status
-                  ).length;
+                  const count = payroll.employees.filter((e) => e.status === status).length;
                   if (count === 0) return null;
                   return (
                     <div key={status} className="flex items-center gap-2">
