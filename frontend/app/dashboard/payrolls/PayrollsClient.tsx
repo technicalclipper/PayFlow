@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Plus, Calendar, DollarSign, Users, Eye } from "lucide-react";
+import { Plus, Calendar, DollarSign, Users, Eye, LinkIcon } from "lucide-react";
 import Link from "next/link";
 import GlassCard from "@/components/ui/GlassCard";
 import Button from "@/components/ui/Button";
@@ -40,6 +40,13 @@ export default function PayrollsClient({ payrolls }: { payrolls: any[] }) {
                       <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-text-muted" />{new Date(payroll.payout_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
                       <div className="flex items-center gap-2"><DollarSign className="w-4 h-4 text-text-muted" /><span className="font-medium text-text-primary">{Number(payroll.total_amount).toLocaleString()} USDC</span></div>
                       <div className="flex items-center gap-2"><Users className="w-4 h-4 text-text-muted" />{employees.length} employees</div>
+                      {payroll.onchain_payroll_id !== null && payroll.onchain_payroll_id !== undefined && (
+                        <div className="flex items-center gap-1.5">
+                          <LinkIcon className="w-3.5 h-3.5 text-accent-blue" />
+                          <span className="text-accent-blue font-medium">On-chain #{payroll.onchain_payroll_id}</span>
+                          {payroll.onchain_funded && <span className="text-success">• Funded</span>}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <Link href={`/dashboard/payrolls/${payroll.id}`}>

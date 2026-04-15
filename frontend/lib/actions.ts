@@ -9,6 +9,7 @@ import crypto from "crypto";
 export async function createEmployee(formData: FormData) {
   const name = formData.get("name") as string;
   const email = formData.get("email") as string;
+  const walletAddress = formData.get("wallet_address") as string | null;
 
   if (!name || !email) {
     return { error: "Name and email are required" };
@@ -16,12 +17,13 @@ export async function createEmployee(formData: FormData) {
 
   const { data, error } = await supabaseAdmin
     .from("employees")
-    .insert({ name, email })
+    .insert({ name, email, wallet_address: walletAddress || null })
     .select()
     .single();
 
   if (error) {
-    if (error.code === "23505") return { error: "An employee with this email already exists" };
+    if (error.code === "23505")
+      return { error: "An employee with this email already exists" };
     return { error: error.message };
   }
 
@@ -31,27 +33,24 @@ export async function createEmployee(formData: FormData) {
 }
 
 export async function deleteEmployee(id: string) {
-  const { error } = await supabaseAdmin
-    .from("employees")
-    .delete()
-    .eq("id", id);
-
+  const { error } = await supabaseAdmin.from("employees").delete().eq("id", id);
   if (error) return { error: error.message };
-
   revalidatePath("/dashboard/employees");
   revalidatePath("/dashboard");
   return { success: true };
 }
 
-// ─── Payrolls ───
+// ─── Payrolls (Supabase only — on-chain happens client-side) ───
 
-interface CreatePayrollInput {
+interface SavePayrollInput {
   payoutDate: string;
   entries: { employeeId: string; amount: number }[];
+  onchainPayrollId: number | null;
+  onchainTxHash: string | null;
 }
 
-export async function createPayroll(input: CreatePayrollInput) {
-  const { payoutDate, entries } = input;
+export async function savePayroll(input: SavePayrollInput) {
+  const { payoutDate, entries, onchainPayrollId, onchainTxHash } = input;
 
   if (!payoutDate || entries.length === 0) {
     return { error: "Payout date and at least one employee are required" };
@@ -70,6 +69,9 @@ export async function createPayroll(input: CreatePayrollInput) {
       payout_date: payoutDate,
       total_amount: totalAmount,
       status: "scheduled",
+      onchain_payroll_id: onchainPayrollId,
+      onchain_tx_hash: onchainTxHash,
+      onchain_funded: false,
     })
     .select()
     .single();
@@ -97,51 +99,87 @@ export async function createPayroll(input: CreatePayrollInput) {
   return { data: payroll };
 }
 
-// ─── Distribution (simulate funding) ───
+// ─── Mark Funded (called after client-side on-chain funding) ───
 
-export async function distributePayroll(payrollId: string) {
-  const { data: payrollEmployees, error: fetchError } = await supabaseAdmin
+export async function markPayrollFunded(payrollId: string, txHash: string) {
+  const { error } = await supabaseAdmin
+    .from("payrolls")
+    .update({ onchain_funded: true, status: "funded" })
+    .eq("id", payrollId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/dashboard/payrolls/${payrollId}`);
+  revalidatePath("/dashboard/payrolls");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+// ─── Distribute (called after client-side on-chain distribution) ───
+
+export async function markPayrollDistributed(payrollId: string, txHash: string) {
+  // Update all pending employees to "funded" status
+  const { data: payrollEmployees } = await supabaseAdmin
     .from("payroll_employees")
     .select("id, employee_id, status")
     .eq("payroll_id", payrollId)
-    .eq("status", "pending");
+    .in("status", ["pending", "funded"]);
 
-  if (fetchError) return { error: fetchError.message };
-  if (!payrollEmployees || payrollEmployees.length === 0) {
-    return { error: "No pending employees to distribute" };
+  if (payrollEmployees && payrollEmployees.length > 0) {
+    const ids = payrollEmployees.map((pe) => pe.id);
+    await supabaseAdmin
+      .from("payroll_employees")
+      .update({ status: "funded" })
+      .in("id", ids);
   }
 
-  const ids = payrollEmployees.map((pe) => pe.id);
-  const { error: updateError } = await supabaseAdmin
-    .from("payroll_employees")
-    .update({ status: "funded" })
-    .in("id", ids);
-
-  if (updateError) return { error: updateError.message };
-
+  // Update payroll status
   await supabaseAdmin
     .from("payrolls")
     .update({ status: "processed" })
     .eq("id", payrollId);
 
-  // Generate redeem tokens for each funded employee
-  const tokens = payrollEmployees.map((pe) => ({
-    token: crypto.randomBytes(32).toString("hex"),
-    employee_id: pe.employee_id,
-    payroll_id: payrollId,
-    is_used: false,
-    expires_at: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
-  }));
+  // Generate redeem tokens
+  const { data: allPe } = await supabaseAdmin
+    .from("payroll_employees")
+    .select("id, employee_id")
+    .eq("payroll_id", payrollId);
 
-  await supabaseAdmin.from("redeem_tokens").insert(tokens);
+  let tokensGenerated = 0;
+
+  if (allPe && allPe.length > 0) {
+    const { data: existingTokens } = await supabaseAdmin
+      .from("redeem_tokens")
+      .select("employee_id")
+      .eq("payroll_id", payrollId);
+
+    const existingEmployeeIds = new Set(
+      existingTokens?.map((t: any) => t.employee_id) ?? []
+    );
+
+    const newTokens = allPe
+      .filter((pe) => !existingEmployeeIds.has(pe.employee_id))
+      .map((pe) => ({
+        token: crypto.randomBytes(32).toString("hex"),
+        employee_id: pe.employee_id,
+        payroll_id: payrollId,
+        is_used: false,
+        expires_at: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
+      }));
+
+    if (newTokens.length > 0) {
+      await supabaseAdmin.from("redeem_tokens").insert(newTokens);
+      tokensGenerated = newTokens.length;
+    }
+  }
 
   revalidatePath(`/dashboard/payrolls/${payrollId}`);
   revalidatePath("/dashboard/payrolls");
   revalidatePath("/dashboard");
-  return { success: true, tokensGenerated: tokens.length };
+  return { success: true, tokensGenerated, txHash };
 }
 
-// ─── Generate Redeem Tokens ───
+// ─── Get Payroll Tokens ───
 
 export async function getPayrollTokens(payrollId: string) {
   const { data, error } = await supabaseAdmin
@@ -164,7 +202,6 @@ export async function claimSalary(token: string, walletAddress: string) {
     return { error: "Invalid wallet address" };
   }
 
-  // Step 1: Validate token
   const { data: tokenData, error: tokenError } = await supabaseAdmin
     .from("redeem_tokens")
     .select("*")
@@ -183,7 +220,6 @@ export async function claimSalary(token: string, walletAddress: string) {
     return { error: "This token has expired" };
   }
 
-  // Step 2: Check payroll_employee status
   const { data: pe, error: peError } = await supabaseAdmin
     .from("payroll_employees")
     .select("*")
@@ -196,27 +232,27 @@ export async function claimSalary(token: string, walletAddress: string) {
   }
 
   if (pe.status !== "funded") {
-    return { error: pe.status === "redeemed" ? "Already redeemed" : "Salary not yet funded" };
+    return {
+      error:
+        pe.status === "redeemed"
+          ? "Already redeemed"
+          : "Salary not yet funded",
+    };
   }
 
-  // Step 3: Execute transfer (placeholder — Circle integration goes here later)
-  // In production: transfer from embedded wallet → walletAddress via Circle SDK
-
-  // Step 4: Update DB
-  const { error: updateTokenError } = await supabaseAdmin
+  // Funds already distributed on-chain to employee wallets.
+  // Mark as redeemed in DB.
+  await supabaseAdmin
     .from("redeem_tokens")
     .update({ is_used: true })
     .eq("id", tokenData.id);
 
-  if (updateTokenError) return { error: "Failed to update token" };
-
-  const { error: updatePeError } = await supabaseAdmin
+  await supabaseAdmin
     .from("payroll_employees")
     .update({ status: "redeemed" })
     .eq("id", pe.id);
 
-  if (updatePeError) return { error: "Failed to update payroll status" };
-
+  revalidatePath("/dashboard");
   return {
     success: true,
     amount: pe.salary_amount,

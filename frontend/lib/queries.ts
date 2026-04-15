@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "./supabase";
-import type { Employee, Payroll, PayrollEmployee } from "./types";
+import type { Employee, Payroll, PayrollEmployee, RedeemToken } from "./types";
 
 // ─── Employees ───
 
@@ -135,7 +135,7 @@ export async function getRedeemToken(token: string) {
     .single();
 
   if (error) return null;
-  return data;
+  return data as (RedeemToken & { employees: Employee | null; payrolls: Payroll | null }) | null;
 }
 
 export async function getRedeemPayrollEmployee(employeeId: string, payrollId: string) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { UserPlus, Search, Mail, Wallet, X } from "lucide-react";
+import { UserPlus, Search, Mail, Wallet, X, LinkIcon } from "lucide-react";
 import GlassCard from "@/components/ui/GlassCard";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -46,7 +46,6 @@ export default function EmployeesClient({ employees }: { employees: Employee[] }
         <Button icon={<UserPlus className="w-4 h-4" />} onClick={() => setShowAdd(true)}>Add Employee</Button>
       </div>
 
-      {/* Add Employee Modal */}
       {showAdd && (
         <GlassCard className="p-6">
           <div className="flex items-center justify-between mb-4">
@@ -55,10 +54,15 @@ export default function EmployeesClient({ employees }: { employees: Employee[] }
               <X className="w-5 h-5" />
             </button>
           </div>
-          <form action={handleSubmit} className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1"><Input name="name" placeholder="Full name" required /></div>
-            <div className="flex-1"><Input name="email" type="email" placeholder="Email address" required /></div>
-            <Button type="submit" loading={isPending}>Add</Button>
+          <form action={handleSubmit} className="space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1"><Input name="name" placeholder="Full name" required /></div>
+              <div className="flex-1"><Input name="email" type="email" placeholder="Email address" required /></div>
+            </div>
+            <div>
+              <Input name="wallet_address" placeholder="Wallet address (0x...) — optional, needed for on-chain payroll" icon={<LinkIcon className="w-4 h-4" />} />
+            </div>
+            <Button type="submit" loading={isPending}>Add Employee</Button>
           </form>
           {error && <p className="text-sm text-error mt-2">{error}</p>}
         </GlassCard>
@@ -93,7 +97,9 @@ export default function EmployeesClient({ employees }: { employees: Employee[] }
                 <div className="flex items-center gap-2.5 text-sm text-text-secondary">
                   <Wallet className="w-4 h-4 text-text-muted flex-shrink-0" />
                   <code className="text-xs bg-white/5 px-2 py-0.5 rounded truncate">
-                    {employee.wallet_id ?? "No wallet yet"}
+                    {employee.wallet_address
+                      ? `${employee.wallet_address.slice(0, 6)}...${employee.wallet_address.slice(-4)}`
+                      : "No wallet yet"}
                   </code>
                 </div>
               </div>
